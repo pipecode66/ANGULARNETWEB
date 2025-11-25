@@ -1,0 +1,23 @@
+# Root ignores
+*.tar.gz
+*.zip
+*.7z
+*.db*
+pscp.exe
+plink.exe
+
+# Backend
+backend/bin/
+backend/obj/
+backend/kanban.db*
+backend/Data/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.vscode/
+
+# General
+.DS_Store
+Thumbs.db

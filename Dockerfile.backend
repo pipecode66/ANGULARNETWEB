@@ -1,0 +1,21 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY backend/*.csproj ./backend/
+RUN dotnet restore backend/Kanban.Api.csproj
+
+COPY backend/ ./backend/
+WORKDIR /src/backend
+RUN dotnet publish -c Release -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+
+# CapRover espera que la app escuche en el puerto 80 dentro del contenedor
+ENV ASPNETCORE_URLS=http://+:80
+
+COPY --from=build /app/publish ./
+
+VOLUME ["/app/data"]
+
+ENTRYPOINT ["dotnet", "Kanban.Api.dll"]

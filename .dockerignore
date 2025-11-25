@@ -1,0 +1,15 @@
+bin/
+obj/
+node_modules/
+**/node_modules/
+**/.angular/cache/
+**/.vs/
+**/.git/
+**/.gitignore
+**/dist/
+**/coverage/
+**/.DS_Store
+**/Thumbs.db
+*.db
+*.db-shm
+*.db-wal

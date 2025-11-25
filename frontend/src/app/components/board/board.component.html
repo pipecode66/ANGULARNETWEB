@@ -1,0 +1,104 @@
+<div class="board-shell" [class.loading]="loading()">
+  <header class="board-header">
+    <div>
+      <p class="eyebrow">Tablero Kanban</p>
+      <h1>Trabajo en curso</h1>
+      <p class="subtitle">CRUD, arrastrar y soltar, exportación a PDF y Excel</p>
+    </div>
+    <div class="header-actions">
+      <button class="secondary" type="button" (click)="downloadPdf()" [disabled]="exportLoading()">Exportar PDF</button>
+      <button class="secondary" type="button" (click)="downloadExcel()" [disabled]="exportLoading()">Exportar Excel</button>
+    </div>
+  </header>
+
+  <section class="quick-stats">
+    <div class="stat">
+      <p>Total</p>
+      <h3>{{ stats().total }}</h3>
+    </div>
+    <div class="stat">
+      <p>Por hacer</p>
+      <h3>{{ stats().todo }}</h3>
+    </div>
+    <div class="stat">
+      <p>En progreso</p>
+      <h3>{{ stats().doing }}</h3>
+    </div>
+    <div class="stat">
+      <p>Listo</p>
+      <h3>{{ stats().done }}</h3>
+    </div>
+  </section>
+
+  <section class="form-panel">
+    <div>
+      <h3>{{ editingId() ? 'Editar tarjeta' : 'Crear tarjeta' }}</h3>
+      <p class="subtitle">Completa el formulario y guarda para que aparezca en el tablero.</p>
+    </div>
+    <form [formGroup]="cardForm" (ngSubmit)="saveCard()" class="form">
+      <label>
+        <span>Título</span>
+        <input type="text" formControlName="title" placeholder="Definir entregables" />
+      </label>
+      <label>
+        <span>Descripción</span>
+        <textarea rows="2" formControlName="description" placeholder="Notas rápidas"></textarea>
+      </label>
+      <label>
+        <span>Estado</span>
+        <select formControlName="status">
+          @for (col of columns; track col.key) {
+            <option [value]="col.key">{{ col.title }}</option>
+          }
+        </select>
+      </label>
+      <div class="form-actions">
+        <button class="ghost" type="button" (click)="cancelEdit()" [disabled]="saving()">Limpiar</button>
+        <button class="primary" type="submit" [disabled]="saving()">
+          {{ saving() ? 'Guardando...' : editingId() ? 'Actualizar' : 'Crear' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  @if (error()) {
+    <div class="error">{{ error() }}</div>
+  }
+
+  <section class="board-grid" cdkDropListGroup>
+    @for (col of columns; track col.key) {
+      <div class="column">
+        <header style="--accent: {{ col.accent }}">
+          <div>
+            <p class="eyebrow">{{ col.title }}</p>
+            <span class="badge">{{ board()[col.key]?.length ?? 0 }} tarjetas</span>
+          </div>
+          <span class="dot" aria-hidden="true"></span>
+        </header>
+
+        <div class="card-list" cdkDropList [cdkDropListData]="board()[col.key]" (cdkDropListDropped)="drop($event, col.key)">
+          @if (board()[col.key]?.length === 0) {
+            <div class="empty">Arrastra aquí o crea una tarjeta</div>
+          }
+
+          @for (card of board()[col.key]; track card.id) {
+            <article class="card" cdkDrag>
+              <div class="card__meta">
+                <span class="pill">{{ card.status }}</span>
+                <div class="actions">
+                  <button type="button" (click)="editCard(card)">Editar</button>
+                  <button type="button" class="danger" (click)="deleteCard(card)">Eliminar</button>
+                </div>
+              </div>
+              <h4>{{ card.title }}</h4>
+              <p class="description">{{ card.description || 'Sin descripción' }}</p>
+              <small class="timestamps">
+                Creado {{ card.createdAt | date: 'short' }} · Actualizado {{ card.updatedAt | date: 'short' }}
+              </small>
+            </article>
+          }
+        </div>
+      </div>
+    }
+  </section>
+</div>

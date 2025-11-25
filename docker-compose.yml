@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Default=Data Source=/app/data/kanban.db
+      - Jwt__Key=${JWT_KEY:-f3f9b1b9c4c547e3b1d9571d0d6ea0d1c8b5e4c2a7f6d1c0b2a4d6e8f0a2c4e6}
+      - Jwt__Issuer=KanbanApi
+      - Jwt__Audience=KanbanClient
+      - Cors__AllowedOrigins=http://localhost,http://localhost:80,http://localhost:5036,http://localhost:4200,http://frontend
+    volumes:
+      - ./data/backend:/app/data
+    ports:
+      - "5036:5036"
+    networks:
+      - kanban
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - kanban
+
+networks:
+  kanban:
+    driver: bridge

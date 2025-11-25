@@ -1,0 +1,21 @@
+<div class="layout">
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <p class="eyebrow">ANGULAR.NET</p>
+        <strong>KANBAN</strong>
+      </div>
+    </div>
+    <div class="topbar__actions">
+      @if (authService.isAuthenticated()) {
+        <span class="user">Hola, {{ authService.currentUser() ?? 'usuario' }}</span>
+        <button class="ghost" type="button" (click)="logout()">Cerrar sesión</button>
+      }
+    </div>
+  </header>
+
+  <main class="content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

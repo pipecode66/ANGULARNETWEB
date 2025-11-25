@@ -1,0 +1,54 @@
+<div class="login-shell">
+  <div class="panel">
+    <div class="panel__header">
+      <div>
+        <p class="eyebrow">Tablero Kanban</p>
+        <h1>{{ mode() === 'login' ? 'Inicia sesión' : 'Crea tu cuenta' }}</h1>
+        <p class="subtitle">Bienvenido/a usuario</p>
+      </div>
+      <button type="button" class="ghost" (click)="toggleMode()">
+        {{ mode() === 'login' ? 'Quiero registrarme' : 'Ya tengo cuenta' }}
+      </button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="form">
+      <label class="field">
+        <span>Usuario</span>
+        <input
+          formControlName="username"
+          type="text"
+          placeholder="admin"
+          autocomplete="username"
+          [class.invalid]="form.controls.username.invalid && form.controls.username.touched"
+        />
+        @if (form.controls.username.invalid && form.controls.username.touched) {
+          <small>Ingresa al menos 3 caracteres.</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Contraseña</span>
+        <input
+          formControlName="password"
+          type="password"
+          placeholder="admin123"
+          autocomplete="current-password"
+          [class.invalid]="form.controls.password.invalid && form.controls.password.touched"
+        />
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <small>Mínimo 6 caracteres.</small>
+        }
+      </label>
+
+      @if (error()) {
+        <div class="error">{{ error() }}</div>
+      }
+
+      <button class="primary" type="submit" [disabled]="loading()">
+        {{ loading() ? 'Procesando...' : mode() === 'login' ? 'Entrar' : 'Crear cuenta' }}
+      </button>
+
+      <p class="hint"></p>
+    </form>
+  </div>
+</div>
