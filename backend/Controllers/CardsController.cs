@@ -143,10 +143,14 @@ public class CardsController : ControllerBase
     private static string NormalizeStatus(string status) =>
         string.IsNullOrWhiteSpace(status) ? "todo" : status.Trim().ToLowerInvariant();
 
-    private async Task<int> NextPositionAsync(string status) =>
-        await _dbContext.Cards
+    private async Task<int> NextPositionAsync(string status)
+    {
+        // EF Core con PostgreSQL no traduce bien DefaultIfEmpty() + MaxAsync(), por eso calculamos en memoria.
+        var positions = await _dbContext.Cards
             .Where(c => c.Status == status)
             .Select(c => c.Position)
-            .DefaultIfEmpty(-1)
-            .MaxAsync() + 1;
+            .ToListAsync();
+
+        return positions.Count == 0 ? 0 : positions.Max() + 1;
+    }
 }
