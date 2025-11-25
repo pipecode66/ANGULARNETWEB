@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -98,6 +99,19 @@ static async Task EnsureDatabaseAsync(IServiceProvider services)
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.EnsureCreatedAsync();
 
+    // Asegura la columna UserId si la base ya existía sin ella y asigna tarjetas antiguas al admin.
+    await db.Database.ExecuteSqlRawAsync("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'Cards' AND column_name = 'UserId'
+            ) THEN
+                ALTER TABLE "Cards" ADD COLUMN "UserId" integer;
+            END IF;
+        END$$;
+        """);
+
     if (!await db.Users.AnyAsync())
     {
         db.Users.Add(new User
@@ -107,16 +121,19 @@ static async Task EnsureDatabaseAsync(IServiceProvider services)
         });
     }
 
-    if (!await db.Cards.AnyAsync())
-    {
-        db.Cards.AddRange(new[]
-        {
-            new KanbanCard { Title = "Configurar proyecto", Description = "Revisar dependencias y ambiente", Status = "todo", Position = 0 },
-            new KanbanCard { Title = "Diseñar API", Description = "Endpoints CRUD + exportaciones", Status = "doing", Position = 0 },
-            new KanbanCard { Title = "Preparar UI", Description = "Tablero con drag & drop", Status = "doing", Position = 1 },
-            new KanbanCard { Title = "Entrega inicial", Description = "Probar login y tablero", Status = "done", Position = 0 }
-        });
-    }
+    // Asigna cualquier tarjeta previa al usuario admin y fuerza not null.
+    await db.Database.ExecuteSqlRawAsync("""
+        UPDATE "Cards"
+        SET "UserId" = (SELECT "Id" FROM "Users" WHERE "Username" = 'admin' LIMIT 1)
+        WHERE "UserId" IS NULL;
+        ALTER TABLE "Cards" ALTER COLUMN "UserId" SET NOT NULL;
+    """);
+
+    // Elimina las tarjetas de ejemplo iniciales para que cada usuario arranque sin datos.
+    await db.Database.ExecuteSqlRawAsync("""
+        DELETE FROM "Cards"
+        WHERE "Title" IN ('Configurar proyecto','Diseñar API','Preparar UI','Entrega inicial');
+    """);
 
     await db.SaveChangesAsync();
 }

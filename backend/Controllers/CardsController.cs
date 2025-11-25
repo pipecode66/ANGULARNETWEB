@@ -5,6 +5,7 @@ using Kanban.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Kanban.Api.Controllers;
 
@@ -23,7 +24,10 @@ public class CardsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<KanbanCardDto>>> GetAll()
     {
+        var userId = GetUserId();
+
         var cards = await _dbContext.Cards
+            .Where(c => c.UserId == userId)
             .OrderBy(c => c.Status)
             .ThenBy(c => c.Position)
             .ThenBy(c => c.CreatedAt)
@@ -36,18 +40,21 @@ public class CardsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<KanbanCardDto>> GetById(int id)
     {
-        var card = await _dbContext.Cards.FindAsync(id);
+        var userId = GetUserId();
+        var card = await _dbContext.Cards.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
         return card is null ? NotFound() : Ok(card.ToDto());
     }
 
     [HttpPost]
     public async Task<ActionResult<KanbanCardDto>> Create(CreateCardRequest request)
     {
+        var userId = GetUserId();
         var normalizedStatus = NormalizeStatus(request.Status);
-        var nextPosition = await NextPositionAsync(normalizedStatus);
+        var nextPosition = await NextPositionAsync(normalizedStatus, userId);
 
         var card = new KanbanCard
         {
+            UserId = userId,
             Title = request.Title.Trim(),
             Description = request.Description,
             Status = normalizedStatus,
@@ -65,7 +72,8 @@ public class CardsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult<KanbanCardDto>> Update(int id, UpdateCardRequest request)
     {
-        var card = await _dbContext.Cards.FindAsync(id);
+        var userId = GetUserId();
+        var card = await _dbContext.Cards.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
         if (card is null)
         {
             return NotFound();
@@ -80,7 +88,7 @@ public class CardsController : ControllerBase
 
         if (statusChanged)
         {
-            card.Position = await NextPositionAsync(normalizedStatus);
+            card.Position = await NextPositionAsync(normalizedStatus, userId);
         }
         else
         {
@@ -96,13 +104,14 @@ public class CardsController : ControllerBase
     [HttpPost("reorder")]
     public async Task<IActionResult> Reorder([FromBody] List<ReorderItem> items)
     {
+        var userId = GetUserId();
         if (items.Count == 0)
         {
             return BadRequest("No hay elementos para reordenar.");
         }
 
         var ids = items.Select(i => i.Id).ToList();
-        var cards = await _dbContext.Cards.Where(c => ids.Contains(c.Id)).ToListAsync();
+        var cards = await _dbContext.Cards.Where(c => ids.Contains(c.Id) && c.UserId == userId).ToListAsync();
 
         foreach (var group in items.GroupBy(i => NormalizeStatus(i.Status)))
         {
@@ -129,7 +138,8 @@ public class CardsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var card = await _dbContext.Cards.FindAsync(id);
+        var userId = GetUserId();
+        var card = await _dbContext.Cards.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
         if (card is null)
         {
             return NotFound();
@@ -140,14 +150,20 @@ public class CardsController : ControllerBase
         return NoContent();
     }
 
+    private int GetUserId()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        return int.TryParse(userId, out var id) ? id : throw new UnauthorizedAccessException("No se pudo obtener el usuario.");
+    }
+
     private static string NormalizeStatus(string status) =>
         string.IsNullOrWhiteSpace(status) ? "todo" : status.Trim().ToLowerInvariant();
 
-    private async Task<int> NextPositionAsync(string status)
+    private async Task<int> NextPositionAsync(string status, int userId)
     {
         // EF Core con PostgreSQL no traduce bien DefaultIfEmpty() + MaxAsync(), por eso calculamos en memoria.
         var positions = await _dbContext.Cards
-            .Where(c => c.Status == status)
+            .Where(c => c.Status == status && c.UserId == userId)
             .Select(c => c.Position)
             .ToListAsync();
 
